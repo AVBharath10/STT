@@ -1,0 +1,4 @@
+Flask
+flask-cors
+openai-whisper 
+# or whisperx if you want alignment/timestamps
