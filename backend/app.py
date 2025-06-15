@@ -3,18 +3,15 @@ from flask_cors import CORS
 import os
 from werkzeug.utils import secure_filename
 from whisper_utils import transcribe_audio
-from openai import OpenAI
+import requests # <-- Import the requests library
 
 app = Flask(__name__)
 CORS(app)
 
-# Config
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-ALLOWED_EXTENSIONS = {'wav', 'mp3', 'ogg'}
+ALLOWED_EXTENSIONS = {'wav', 'mp3', 'ogg','webm'}
 
-# Initialize OpenAI client
-client = OpenAI(api_key="your-openai-key")  # Replace with your key
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -32,7 +29,7 @@ def transcribe():
         filename = secure_filename(file.filename)
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         file.save(filepath)
-        
+
         transcript = transcribe_audio(filepath)
         return jsonify({"text": transcript})
 
@@ -51,18 +48,50 @@ def generate_suggestion():
     if not transcript:
         return jsonify({"error": "No transcript provided"}), 400
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a call center AI assistant. Provide short, actionable responses to the agent."},
-                {"role": "user", "content": f"Conversation:\n{transcript}\n\nSuggested response:"}
-            ],
-            max_tokens=100
-        )
-        return jsonify({"suggestion": response.choices[0].message.content})
+    # --- Ollama Configuration ---
+    OLLAMA_API_URL = "http://localhost:11434/api/generate"
+    # Make sure this matches the specific Llama 3 model you have pulled, e.g., "llama3" or "llama3:8b"
+    OLLAMA_MODEL = "llama3" # <-- CHANGE THIS if your model is named differently (e.g., "llama3:8b")
 
+    # Define your prompt for Ollama
+    # This prompt tells the AI what its role is and what information to use.
+    prompt_text = f"""
+       You are a helpful call center AI assistant. Your ONLY task is to provide the agent with a concise, actionable, and natural-sounding response to the customer based on the conversation transcript. DO NOT include any introductory or concluding remarks about your process or the suggestion itself. Just provide the direct agent response. Focus on the most immediate next step or information needed.
+    Conversation Transcript:
+    {transcript}
+
+    Agent's Next Suggested Response:
+    """
+
+    try:
+        # Send request to Ollama API
+        response = requests.post(
+            OLLAMA_API_URL,
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt_text,
+                "stream": False,  # We want a single response, not a stream of tokens
+                "options": {
+                    "temperature": 0.7, # Adjust as needed (0.0 for deterministic, 1.0 for more creative)
+                    "num_predict": 128, # Max tokens in the response (adjust based on desired length)
+                    "top_k": 40,
+                    "top_p": 0.9
+                }
+            }
+        )
+        response.raise_for_status() # Raise an exception for HTTP errors (4xx or 5xx)
+
+        ollama_response = response.json()
+        # The actual text content is usually in the 'response' field for /api/generate
+        suggestion = ollama_response.get("response", "No suggestion generated.")
+
+        return jsonify({"suggestion": suggestion})
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error communicating with Ollama: {e}")
+        return jsonify({"error": f"Failed to get suggestion from Ollama: {e}"}), 500
     except Exception as e:
+        print(f"An unexpected error occurred: {e}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':

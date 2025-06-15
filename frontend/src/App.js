@@ -9,11 +9,11 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const intervalRef = useRef(null);
 
-  // ✅ Send audio to Whisper backend
   const sendAudioToBackend = async (audioBlob) => {
     const formData = new FormData();
-    formData.append("file", audioBlob);
+    formData.append("file", audioBlob,"recorded_audio.webm");
 
     try {
       setIsLoading(true);
@@ -43,16 +43,16 @@ const App = () => {
       };
 
       mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         sendAudioToBackend(audioBlob);
+        clearInterval(intervalRef.current);
       };
 
       mediaRecorderRef.current.start();
       setIsRecording(true);
       setTranscript("🎙️ Recording...");
 
-      // Send chunks every 2 seconds for near-real-time
-      setInterval(() => {
+      intervalRef.current = setInterval(() => {
         if (mediaRecorderRef.current?.state === "recording") {
           mediaRecorderRef.current.requestData();
         }
@@ -144,7 +144,6 @@ const App = () => {
           </div>
         </motion.div>
 
-        {/* 📝 Transcript Panel */}
         <motion.div className="transcript-panel card" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="panel-header">
             <h2>Live Transcript</h2>
@@ -170,7 +169,6 @@ const App = () => {
           </div>
         </motion.div>
 
-        {/* 🤖 Suggestions Panel */}
         <motion.div className="suggestions-panel card" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <h2>AI Suggestions</h2>
           <div className="suggestions-list">
