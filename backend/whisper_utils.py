@@ -1,16 +1,16 @@
 import whisper
 import os
 
-model = whisper.load_model("base")  # Use "small" for better accuracy
+model = whisper.load_model("base")  
 
 def transcribe_audio(filepath):
     """Transcribe audio with optimized settings"""
     try:
         result = model.transcribe(
             filepath,
-            fp16=False,  # Disable if running on CPU
+            fp16=False, 
             language="en",
-            temperature=0.2  # Reduce randomness
+            temperature=0.2
         )
         return result["text"]
     except Exception as e:

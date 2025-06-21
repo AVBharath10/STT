@@ -3,7 +3,7 @@ from flask_cors import CORS
 import os
 from werkzeug.utils import secure_filename
 from whisper_utils import transcribe_audio
-import requests # <-- Import the requests library
+import requests 
 
 app = Flask(__name__)
 CORS(app)
@@ -48,13 +48,9 @@ def generate_suggestion():
     if not transcript:
         return jsonify({"error": "No transcript provided"}), 400
 
-    # --- Ollama Configuration ---
     OLLAMA_API_URL = "http://localhost:11434/api/generate"
-    # Make sure this matches the specific Llama 3 model you have pulled, e.g., "llama3" or "llama3:8b"
     OLLAMA_MODEL = "llama3" # <-- CHANGE THIS if your model is named differently (e.g., "llama3:8b")
 
-    # Define your prompt for Ollama
-    # This prompt tells the AI what its role is and what information to use.
     prompt_text = f"""
        You are a helpful call center AI assistant. Your ONLY task is to provide the agent with a concise, actionable, and natural-sounding response to the customer based on the conversation transcript. DO NOT include any introductory or concluding remarks about your process or the suggestion itself. Just provide the direct agent response. Focus on the most immediate next step or information needed.
     Conversation Transcript:
